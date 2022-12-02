@@ -1,0 +1,64 @@
+# Template
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+data = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day1.txt")
+test_input = ""
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def main(input) do
+    input
+  end
+end
+
+Part1.main(test_input)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def main(input) do
+    input
+  end
+end
+
+Part2.main(test_input)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day1.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "part1" => &BenchmarkTests.part1/0,
+    "part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```
