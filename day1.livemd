@@ -1,0 +1,108 @@
+# Day1
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+input = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day1.txt")
+
+test_input = """
+1000
+2000
+3000
+
+4000
+
+5000
+6000
+
+7000
+8000
+9000
+
+10000
+"""
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def get_sums_per_elf(input) do
+    chunk_fun = fn element, acc ->
+      if element == "" do
+        {:cont, Enum.reverse(acc), []}
+      else
+        {:cont, [String.to_integer(element) | acc]}
+      end
+    end
+
+    after_fun = fn
+      [] -> {:cont, []}
+      acc -> {:cont, Enum.reverse(acc), []}
+    end
+
+    input
+    |> String.split("\n")
+    |> Enum.chunk_while([], chunk_fun, after_fun)
+    |> Enum.map(&Enum.sum/1)
+  end
+
+  def main(input) do
+    input
+    |> get_sums_per_elf()
+    |> Enum.max()
+  end
+end
+
+Part1.main(test_input) == 24000
+Part1.main(input)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def main(input) do
+    input
+    |> Part1.get_sums_per_elf()
+    |> Enum.sort(:desc)
+    |> Enum.take(3)
+    |> Enum.sum()
+  end
+end
+
+Part2.main(test_input) == 45000
+Part2.main(input)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day1.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "day1.part1" => &BenchmarkTests.part1/0,
+    "day1.part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```
