@@ -1,0 +1,199 @@
+# Day 12
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+data = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day12.txt")
+
+test_input = """
+Sabqponm
+abcryxxl
+accszExk
+acctuvwj
+abdefghi
+"""
+```
+
+## Shared
+
+```elixir
+defmodule Day12Utils do
+  def parse_grid(input) do
+    grid =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.with_index()
+      |> Enum.map(fn {line, y} ->
+        line
+        |> String.to_charlist()
+        |> Enum.with_index()
+        |> Enum.map(fn {v, x} ->
+          {{x, y}, v}
+        end)
+      end)
+      |> List.flatten()
+      |> Enum.into(%{})
+
+    coordinates = Map.keys(grid)
+    unvisited = MapSet.new(coordinates)
+    {start_point, _v} = Enum.find(grid, fn {_, v} -> v == 83 end)
+    {end_point, _v} = Enum.find(grid, fn {_, v} -> v == 69 end)
+    distances = Enum.map(coordinates, &{&1, 999_999_999}) |> Enum.into(%{})
+
+    %{
+      grid: grid |> Map.put(start_point, ?a) |> Map.put(end_point, ?z),
+      unvisited: MapSet.delete(unvisited, start_point),
+      current: start_point,
+      end_point: end_point,
+      distances: Map.put(distances, start_point, 0),
+      points_to_explore: []
+    }
+  end
+
+  def loop_points_to_explore(state) do
+    next = find_next_current_spot(state)
+
+    if next == state.end_point do
+      Map.get(state.distances, state.end_point)
+    else
+      state
+      |> Map.put(:current, next)
+      |> Map.update!(:unvisited, &MapSet.delete(&1, next))
+      |> update_neighbours()
+      |> loop_points_to_explore()
+    end
+  end
+
+  def update_neighbours(state) do
+    state
+    |> possible_neighbours()
+    |> keep_only_unvisited(state)
+    |> keep_viable(state)
+    |> update_state(state)
+  end
+
+  def find_next_current_spot(state) do
+    {point, distance} =
+      state
+      |> Map.get(:unvisited)
+      |> MapSet.to_list()
+      |> Enum.map(&{&1, Map.get(state.distances, &1)})
+      |> Enum.sort_by(&elem(&1, 1))
+      |> hd()
+
+    if distance == 999_999_999 do
+      IO.inspect(state)
+      raise("found only ones with infinite length")
+    end
+
+    point
+  end
+
+  def possible_neighbours(%{current: {x, y}}) do
+    [{x + 1, y}, {x - 1, y}, {x, y + 1}, {x, y - 1}]
+  end
+
+  def keep_only_unvisited(neighbours, %{unvisited: unvisited}) do
+    Enum.filter(neighbours, fn point ->
+      MapSet.member?(unvisited, point)
+    end)
+  end
+
+  def keep_viable(neighbours, %{grid: grid, current: current}) do
+    c = grid[current]
+
+    Enum.filter(neighbours, fn point ->
+      grid[point] <= c + 1
+    end)
+  end
+
+  def update_state(neighbours, state) do
+    curr_nr = state.distances[state.current]
+
+    state
+    |> Map.update!(
+      :distances,
+      &Enum.reduce(neighbours, &1, fn x, acc ->
+        Map.update(acc, x, curr_nr + 1, fn y -> if y > curr_nr + 1, do: curr_nr + 1, else: y end)
+      end)
+    )
+  end
+end
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def main(input) do
+    input
+    |> Day12Utils.parse_grid()
+    |> Day12Utils.update_neighbours()
+    |> Day12Utils.loop_points_to_explore()
+  end
+end
+
+# Part1.main(test_input) == 31
+Part1.main(data)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  # I'm going to start at b's because there are way too many a's to consider, 
+  # so hoping to find a short path from a b and then just add 1 :)
+  def main(input) do
+    parsed_grid = Day12Utils.parse_grid(input)
+
+    start_points = parsed_grid.grid |> Enum.filter(fn {point, v} -> v == ?b end)
+
+    for {point, _} <- start_points do
+      IO.inspect(
+        {point,
+         parsed_grid
+         |> Map.put(:current, point)
+         |> Map.update!(:distances, &Map.put(&1, point, 0))
+         |> Day12Utils.update_neighbours()
+         |> Day12Utils.loop_points_to_explore()}
+      )
+    end
+    |> Enum.min_by(&elem(&1, 1))
+  end
+end
+
+# Part2.main(test_input) == 29
+Part2.main(data)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day1.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "part1" => &BenchmarkTests.part1/0,
+    "part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```

@@ -1,0 +1,175 @@
+# Day 9
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+data = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day9.txt")
+
+test_input = """
+R 4
+U 4
+L 3
+D 1
+R 4
+D 1
+L 5
+R 2
+"""
+```
+
+## Shared
+
+```elixir
+defmodule Day9 do
+  def determine_head_coordinates([], _, acc), do: Enum.reverse(acc)
+
+  def determine_head_coordinates([{_, 0} | rest], {x, y}, acc) do
+    determine_head_coordinates(rest, {x, y}, acc)
+  end
+
+  def determine_head_coordinates([{:R, count} | rest], {x, y}, acc) do
+    determine_head_coordinates([{:R, count - 1} | rest], {x + 1, y}, [{x + 1, y} | acc])
+  end
+
+  def determine_head_coordinates([{:L, count} | rest], {x, y}, acc) do
+    determine_head_coordinates([{:L, count - 1} | rest], {x - 1, y}, [{x - 1, y} | acc])
+  end
+
+  def determine_head_coordinates([{:U, count} | rest], {x, y}, acc) do
+    determine_head_coordinates([{:U, count - 1} | rest], {x, y + 1}, [{x, y + 1} | acc])
+  end
+
+  def determine_head_coordinates([{:D, count} | rest], {x, y}, acc) do
+    determine_head_coordinates([{:D, count - 1} | rest], {x, y - 1}, [{x, y - 1} | acc])
+  end
+
+  def move_tail_along_the_path([], _, acc), do: Enum.reverse(acc)
+
+  # within one distance
+  def move_tail_along_the_path([{hx, hy} | rest], {tx, ty}, acc)
+      when abs(hx - tx) < 2 and abs(hy - ty) < 2 do
+    move_tail_along_the_path(rest, {tx, ty}, acc)
+  end
+
+  # y coordinates the same
+  def move_tail_along_the_path([{hx, hy} | rest], {tx, hy}, acc) do
+    new_x = if hx > tx, do: tx + 1, else: tx - 1
+    move_tail_along_the_path(rest, {new_x, hy}, [{new_x, hy} | acc])
+  end
+
+  # x coordinate the same
+  def move_tail_along_the_path([{hx, hy} | rest], {hx, ty}, acc) do
+    new_y = if hy > ty, do: ty + 1, else: ty - 1
+    move_tail_along_the_path(rest, {hx, new_y}, [{hx, new_y} | acc])
+  end
+
+  def move_tail_along_the_path([{hx, hy} | rest], {tx, ty}, acc) do
+    {new_x, new_y} =
+      cond do
+        hx > tx and hy > ty -> {tx + 1, ty + 1}
+        hx > tx and hy < ty -> {tx + 1, ty - 1}
+        hx < tx and hy < ty -> {tx - 1, ty - 1}
+        hx < tx and hy > ty -> {tx - 1, ty + 1}
+      end
+
+    move_tail_along_the_path(rest, {new_x, new_y}, [{new_x, new_y} | acc])
+  end
+end
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def main(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      [dir, count] = String.split(line, " ")
+      {String.to_atom(dir), String.to_integer(count)}
+    end)
+    |> Day9.determine_head_coordinates({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Enum.uniq()
+    |> Enum.count()
+  end
+end
+
+Part1.main(test_input) == 13
+Part1.main(data)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def main(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> Enum.map(fn line ->
+      [dir, count] = String.split(line, " ")
+      {String.to_atom(dir), String.to_integer(count)}
+    end)
+    |> Day9.determine_head_coordinates({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Day9.move_tail_along_the_path({0, 0}, [{0, 0}])
+    |> Enum.uniq()
+    |> Enum.count()
+  end
+end
+
+Part2.main(test_input) == 1
+
+alt_test = """
+R 5
+U 8
+L 8
+D 3
+R 17
+D 10
+L 25
+U 20
+"""
+
+Part2.main(alt_test) == 36
+Part2.main(data)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day9.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "day9.part1" => &BenchmarkTests.part1/0,
+    "day9.part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```

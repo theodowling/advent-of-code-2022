@@ -1,0 +1,281 @@
+# Day 10
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+data = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day10.txt")
+
+test_input = """
+addx 15
+addx -11
+addx 6
+addx -3
+addx 5
+addx -1
+addx -8
+addx 13
+addx 4
+noop
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx 5
+addx -1
+addx -35
+addx 1
+addx 24
+addx -19
+addx 1
+addx 16
+addx -11
+noop
+noop
+addx 21
+addx -15
+noop
+noop
+addx -3
+addx 9
+addx 1
+addx -3
+addx 8
+addx 1
+addx 5
+noop
+noop
+noop
+noop
+noop
+addx -36
+noop
+addx 1
+addx 7
+noop
+noop
+noop
+addx 2
+addx 6
+noop
+noop
+noop
+noop
+noop
+addx 1
+noop
+noop
+addx 7
+addx 1
+noop
+addx -13
+addx 13
+addx 7
+noop
+addx 1
+addx -33
+noop
+noop
+noop
+addx 2
+noop
+noop
+noop
+addx 8
+noop
+addx -1
+addx 2
+addx 1
+noop
+addx 17
+addx -9
+addx 1
+addx 1
+addx -3
+addx 11
+noop
+noop
+addx 1
+noop
+addx 1
+noop
+noop
+addx -13
+addx -19
+addx 1
+addx 3
+addx 26
+addx -30
+addx 12
+addx -1
+addx 3
+addx 1
+noop
+noop
+noop
+addx -9
+addx 18
+addx 1
+addx 2
+noop
+noop
+addx 9
+noop
+noop
+noop
+addx -1
+addx 2
+addx -37
+addx 1
+addx 3
+noop
+addx 15
+addx -21
+addx 22
+addx -6
+addx 1
+noop
+addx 2
+addx 1
+noop
+addx -10
+noop
+noop
+addx 20
+addx 1
+addx 2
+addx 2
+addx -6
+addx -11
+noop
+noop
+noop
+"""
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  def main(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> run_commands(1, 1, %{})
+    |> Enum.reduce(0, fn {k, v}, acc -> acc + k * v end)
+  end
+
+  def run_commands([], _x, _cycle, acc) do
+    acc
+  end
+
+  def run_commands(["noop" | rest], x, cycle, acc) do
+    run_commands(rest, x, cycle + 1, should_add_to_acc?(acc, x, cycle))
+  end
+
+  def run_commands(["addx " <> int | rest], x, cycle, acc) do
+    int = String.to_integer(int)
+
+    acc =
+      acc
+      |> should_add_to_acc?(x, cycle)
+      |> should_add_to_acc?(x, cycle + 1)
+
+    run_commands(rest, x + int, cycle + 2, acc)
+  end
+
+  def should_add_to_acc?(acc, x, cycle)
+      when rem(cycle - 20, 40) == 0 do
+    Map.put(acc, cycle, x)
+  end
+
+  def should_add_to_acc?(acc, _x, _cycle) do
+    acc
+  end
+end
+
+Part1.main(test_input) == 13140
+Part1.main(data)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  def main(input) do
+    input
+    |> String.split("\n", trim: true)
+    |> run_commands(1, 0, [])
+    |> Enum.reverse()
+    |> Enum.chunk_every(40)
+    |> Enum.map(&Enum.join(&1, ""))
+    |> Enum.join("\n")
+
+    # |> IO.puts
+  end
+
+  def run_commands([], _x, _cycle, acc) do
+    acc
+  end
+
+  def run_commands(["noop" | rest], x, cycle, acc) do
+    run_commands(rest, x, cycle + 1, should_draw_pixel?(acc, x, cycle))
+  end
+
+  def run_commands(["addx " <> int | rest], x, cycle, acc) do
+    int = String.to_integer(int)
+
+    acc =
+      acc
+      |> should_draw_pixel?(x, cycle)
+      |> should_draw_pixel?(x, cycle + 1)
+
+    run_commands(rest, x + int, cycle + 2, acc)
+  end
+
+  def should_draw_pixel?(acc, x, cycle)
+      when abs(x - rem(cycle, 40)) < 2 do
+    ["#" | acc]
+  end
+
+  def should_draw_pixel?(acc, _x, _cycle) do
+    ["." | acc]
+  end
+end
+
+# Part2.main(test_input)
+Part2.main(data)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day10.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "day10.part1" => &BenchmarkTests.part1/0,
+    "day10.part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```

@@ -1,0 +1,230 @@
+# Day 14
+
+```elixir
+Mix.install([
+  {:kino_benchee, git: "https://github.com/livebook-dev/kino_benchee"}
+])
+```
+
+## Import Data
+
+```elixir
+data = File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day14.txt")
+
+test_input = """
+498,4 -> 498,6 -> 496,6
+503,4 -> 502,4 -> 502,9 -> 494,9
+"""
+```
+
+## Part 1
+
+```elixir
+defmodule Part1 do
+  @start_point {500, 0}
+  def main(input) do
+    walls =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(&get_coordinate_points/1)
+      |> List.flatten()
+
+    {_, bottom} = Enum.max_by(walls, fn {_x, y} -> y end)
+
+    let_sand_fall(@start_point, MapSet.new(walls), MapSet.new(), 0, bottom)
+  end
+
+  def get_coordinate_points(line) do
+    line
+    |> String.split(" -> ", trim: true)
+    |> Enum.map(fn coordinate ->
+      coordinate |> String.split(",", trim: true) |> Enum.map(&String.to_integer/1)
+    end)
+    |> draw_lines([])
+  end
+
+  def draw_lines([[_, _]], acc), do: acc
+
+  def draw_lines([[x, y1], [x, y2] | rest], acc) do
+    draw_lines([[x, y2] | rest], [Enum.map(y1..y2, fn y -> {x, y} end) | acc])
+  end
+
+  def draw_lines([[x1, y], [x2, y] | rest], acc) do
+    draw_lines([[x2, y] | rest], [Enum.map(x1..x2, fn x -> {x, y} end) | acc])
+  end
+
+  def let_sand_fall(_start_point, _walls, rested, fall_off_count, _bottom)
+      when fall_off_count > 5,
+      do: MapSet.size(rested)
+
+  def let_sand_fall(start_point, walls, rested, fall_off_count, bottom) do
+    case start_point
+         |> fall_until_reach_bottom(walls, rested, bottom)
+         |> can_move_diagonal?(walls, rested) do
+      {:rested, {x, y}} ->
+        let_sand_fall(@start_point, walls, MapSet.put(rested, {x, y}), 0, bottom)
+
+      {:cont, {x, y}} ->
+        let_sand_fall({x, y}, walls, rested, fall_off_count, bottom)
+
+      {:infinity, {_x, _y}} ->
+        let_sand_fall(@start_point, walls, rested, fall_off_count + 1, bottom)
+    end
+  end
+
+  def fall_until_reach_bottom({x, y}, _walls, _rested, bottom) when y > bottom,
+    do: {:infinity, {x, y}}
+
+  def fall_until_reach_bottom({x, y}, walls, rested, bottom) do
+    if MapSet.member?(walls, {x, y + 1}) or
+         MapSet.member?(rested, {x, y + 1}) do
+      {:rested, {x, y}}
+    else
+      fall_until_reach_bottom({x, y + 1}, walls, rested, bottom)
+    end
+  end
+
+  def can_move_diagonal?({:rested, {x, y}}, walls, rested) do
+    cond do
+      !MapSet.member?(walls, {x - 1, y + 1}) and !MapSet.member?(rested, {x - 1, y + 1}) ->
+        {:cont, {x - 1, y + 1}}
+
+      !MapSet.member?(walls, {x + 1, y + 1}) and !MapSet.member?(rested, {x + 1, y + 1}) ->
+        {:cont, {x + 1, y + 1}}
+
+      MapSet.member?(walls, {x, y}) or MapSet.member?(rested, {x, y}) ->
+        {:rested, {x, y}}
+        "should not get here"
+
+      true ->
+        {:rested, {x, y}}
+    end
+  end
+
+  def can_move_diagonal?(outcome, _walls, _rested) do
+    outcome
+  end
+end
+
+Part1.main(test_input) == 24
+Part1.main(data)
+```
+
+## Part 2
+
+```elixir
+defmodule Part2 do
+  @start_point {500, 0}
+
+  def main(input) do
+    walls =
+      input
+      |> String.split("\n", trim: true)
+      |> Enum.map(&get_coordinate_points/1)
+      |> List.flatten()
+
+    {_, bottom} = Enum.max_by(walls, fn {_x, y} -> y end)
+
+    let_sand_fall(@start_point, MapSet.new(walls), MapSet.new(), 0, bottom + 2)
+  end
+
+  def get_coordinate_points(line) do
+    line
+    |> String.split(" -> ", trim: true)
+    |> Enum.map(fn coordinate ->
+      coordinate |> String.split(",", trim: true) |> Enum.map(&String.to_integer/1)
+    end)
+    |> draw_lines([])
+  end
+
+  def draw_lines([[_, _]], acc), do: acc
+
+  def draw_lines([[x, y1], [x, y2] | rest], acc) do
+    draw_lines([[x, y2] | rest], [Enum.map(y1..y2, fn y -> {x, y} end) | acc])
+  end
+
+  def draw_lines([[x1, y], [x2, y] | rest], acc) do
+    draw_lines([[x2, y] | rest], [Enum.map(x1..x2, fn x -> {x, y} end) | acc])
+  end
+
+  def let_sand_fall(start_point, walls, rested, fall_off_count, bottom) do
+    case start_point
+         |> fall_until_reach_bottom(walls, rested, bottom)
+         |> can_move_diagonal?(walls, rested) do
+      {:rested, {x, y}} ->
+        let_sand_fall(@start_point, walls, MapSet.put(rested, {x, y}), 0, bottom)
+
+      {:cont, {x, y}} ->
+        let_sand_fall({x, y}, walls, rested, fall_off_count, bottom)
+
+      {:bottom, {x, y}} ->
+        let_sand_fall(@start_point, walls, MapSet.put(rested, {x, y}), 0, bottom)
+
+      {:done, count} ->
+        count
+    end
+  end
+
+  def fall_until_reach_bottom({x, y}, _walls, _rested, bottom) when y == bottom - 1,
+    do: {:bottom, {x, y}}
+
+  def fall_until_reach_bottom({x, y}, walls, rested, bottom) do
+    if MapSet.member?(walls, {x, y + 1}) or
+         MapSet.member?(rested, {x, y + 1}) do
+      {:rested, {x, y}}
+    else
+      fall_until_reach_bottom({x, y + 1}, walls, rested, bottom)
+    end
+  end
+
+  def can_move_diagonal?({:rested, {x, y}}, walls, rested) do
+    cond do
+      !MapSet.member?(walls, {x - 1, y + 1}) and !MapSet.member?(rested, {x - 1, y + 1}) ->
+        {:cont, {x - 1, y + 1}}
+
+      !MapSet.member?(walls, {x + 1, y + 1}) and !MapSet.member?(rested, {x + 1, y + 1}) ->
+        {:cont, {x + 1, y + 1}}
+
+      MapSet.member?(walls, {x, y}) or MapSet.member?(rested, {x, y}) ->
+        # {:rested, {x, y}}
+        {:done, MapSet.size(rested)}
+
+      true ->
+        {:rested, {x, y}}
+    end
+  end
+
+  def can_move_diagonal?(outcome, _walls, _rested) do
+    outcome
+  end
+end
+
+Part2.main(test_input) == 93
+Part2.main(data)
+```
+
+## Benchmarks
+
+```elixir
+defmodule BenchmarkTests do
+  @data File.read!("/Users/theodowling/Source/elixir/advent-of-code-2022/data/day14.txt")
+
+  def part1 do
+    @data |> Part1.main()
+  end
+
+  def part2 do
+    @data |> Part2.main()
+  end
+end
+
+Benchee.run(
+  %{
+    "part1" => &BenchmarkTests.part1/0,
+    "part2" => &BenchmarkTests.part2/0
+  },
+  time: 1,
+  memory_time: 1,
+  reduction_time: 1
+)
+```
